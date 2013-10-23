@@ -174,6 +174,7 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
     private final long maxTimestamp_;
     private final long timestamp_;
     private final int timestampVersionFieldIndex_;
+    private final boolean allRowVersions_;
 
     protected transient byte[] gt_;
     protected transient byte[] gte_;
@@ -203,6 +204,7 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
         validOptions_.addOption("maxTimestamp", true, "Record must have timestamp less then this value");
         validOptions_.addOption("timestamp", true, "Record must have timestamp equal to this value");
         validOptions_.addOption("timestampVersionFieldIndex", true, "Field index of the field to be used as the HBase timestamp version");
+        validOptions_.addOption("allRowVersions", false, "Individual records will be returned for each version of each record");
     }
 
     /**
@@ -245,9 +247,10 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
      * <li>-maxTimestamp= Scan's timestamp for max timeRange
      * <li>-timestamp= Scan's specified timestamp
      * <li>-caster=(HBaseBinaryConverter|Utf8StorageConverter) Utf8StorageConverter is the default
-     * <li>-timestampVersionFieldIndex=fieldIndex the index of the input field to use as the HBase row version (default -1 which means the current timestamp is used)
      * To be used with extreme caution, since this could result in data loss
      * (see http://hbase.apache.org/book.html#perf.hbase.client.putwal).
+     * <li>-timestampVersionFieldIndex=fieldIndex the index of the input field to use as the HBase row version (default -1 which means the current timestamp is used)
+     * <li>-allRowVersions=(true|false) Return all versions of every record as individual records
      * </ul>
      * @throws ParseException 
      * @throws IOException 
@@ -326,6 +329,8 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
         } else {
             timestampVersionFieldIndex_ = -1;
         }
+
+        allRowVersions_ = configuredOptions_.hasOption("allRowVersions");
 
         initScan();
     }
@@ -425,6 +430,11 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
         }
         if (configuredOptions_.hasOption("timestamp")){
             scan.setTimeStamp(timestamp_);
+        }
+
+        if (allRowVersions_) {
+            // this override of the function returns all versions
+            scan.setMaxVersions();
         }
 
         // if the group of columnInfos for this family doesn't contain a prefix, we don't need
