@@ -25,6 +25,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -45,6 +46,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -637,11 +639,16 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
                         tuple.set(currentIndex, cfMap);
                     } else {
                         // It's a column so set the value
-                        byte[] cell=result.getValue(columnInfo.getColumnFamily(),
+                        List<KeyValue> cells=(List<KeyValue>)result.getColumn(columnInfo.getColumnFamily(),
                                                     columnInfo.getColumnName());
-                        DataByteArray value =
-                                cell == null ? null : new DataByteArray(cell);
-                        tuple.set(currentIndex, value);
+                        Iterator cellsIterator = cells.iterator();
+
+                        Map<Long,byte[]> valueMap = new HashMap<Long,byte[]>();
+                        while (cellsIterator.hasNext()) {
+                            KeyValue cell = (KeyValue)cellsIterator.next();
+                            valueMap.put(cell.getTimestamp(), cell.getValue());
+                        }
+                        tuple.set(currentIndex, valueMap);
                     }
                 }
 
