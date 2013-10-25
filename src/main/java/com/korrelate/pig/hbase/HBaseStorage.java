@@ -589,8 +589,8 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
                 // use a map of families -> qualifiers with the most recent
                 // version of the cell. Fetching multiple vesions could be a
                 // useful feature.
-                NavigableMap<byte[], NavigableMap<byte[], byte[]>> resultsMap =
-                        result.getNoVersionMap();
+                NavigableMap<byte[], NavigableMap<byte[], NavigableMap<Long, byte[]>>> resultsMap =
+                        result.getMap();
 
                 if (loadRowKey_){
                     tupleSize++;
@@ -609,7 +609,7 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
                     if (columnInfo.isColumnMap()) {
                         // It's a column family so we need to iterate and set all
                         // values found
-                        NavigableMap<byte[], byte[]> cfResults =
+                        NavigableMap<byte[], NavigableMap<Long, byte[]>> cfResults =
                                 resultsMap.get(columnInfo.getColumnFamily());
                         Map<String, DataByteArray> cfMap =
                                 new HashMap<String, DataByteArray>();
@@ -624,10 +624,13 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
                                 if (columnInfo.getColumnPrefix() == null ||
                                         columnInfo.hasPrefixMatch(quantifier)) {
 
-                                    byte[] cell = cfResults.get(quantifier);
-                                    DataByteArray value =
-                                            cell == null ? null : new DataByteArray(cell);
-                                    cfMap.put(Bytes.toString(quantifier), value);
+                                    NavigableMap<Long,byte[]> cellMap = cfResults.get(quantifier);
+                                    for (Entry<Long,byte[]> cellEntry : cellMap.entrySet()) {
+                                        byte[] cell = cellEntry.getValue();
+                                        DataByteArray value =
+                                                cell == null ? null : new DataByteArray(cell);
+                                        cfMap.put(Bytes.toString(quantifier), value);
+                                    }
                                 }
                             }
                         }
