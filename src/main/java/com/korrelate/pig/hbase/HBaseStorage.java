@@ -89,6 +89,7 @@ import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit;
 import org.apache.pig.backend.hadoop.hbase.HBaseTableInputFormat.HBaseTableIFBuilder;
 import org.apache.pig.builtin.Utf8StorageConverter;
 import org.apache.pig.data.DataBag;
+import org.apache.pig.data.DefaultDataBag;
 import org.apache.pig.data.DataByteArray;
 import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
@@ -644,12 +645,15 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
                                                     columnInfo.getColumnName());
                         Iterator cellsIterator = cells.iterator();
 
-                        Map<String,DataByteArray> valueMap = new ConcurrentSkipListMap<String,DataByteArray>();
+                        DataBag valueBag = new DefaultDataBag();
                         while (cellsIterator.hasNext()) {
                             KeyValue cell = (KeyValue)cellsIterator.next();
-                            valueMap.put(String.valueOf(cell.getTimestamp()), new DataByteArray(cell.getValue()));
+                            Tuple valueTuple = TupleFactory.getInstance().newTuple(2);
+                            valueTuple.set(0, cell.getTimestamp());
+                            valueTuple.set(1, new DataByteArray(cell.getValue()));
+                            valueBag.add(valueTuple);
                         }
-                        tuple.set(currentIndex, valueMap);
+                        tuple.set(currentIndex, valueBag);
                     }
                 }
 
