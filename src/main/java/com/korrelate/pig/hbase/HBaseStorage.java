@@ -23,6 +23,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -643,10 +644,10 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
                                                     columnInfo.getColumnName());
                         Iterator cellsIterator = cells.iterator();
 
-                        Map<Long,byte[]> valueMap = new HashMap<Long,byte[]>();
+                        Map<String,DataByteArray> valueMap = new ConcurrentSkipListMap<String,DataByteArray>();
                         while (cellsIterator.hasNext()) {
                             KeyValue cell = (KeyValue)cellsIterator.next();
-                            valueMap.put(cell.getTimestamp(), cell.getValue());
+                            valueMap.put(String.valueOf(cell.getTimestamp()), new DataByteArray(cell.getValue()));
                         }
                         tuple.set(currentIndex, valueMap);
                     }
