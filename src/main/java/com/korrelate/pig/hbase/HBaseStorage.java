@@ -26,6 +26,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.Set;
 
 import org.joda.time.DateTime;
 
@@ -615,45 +617,78 @@ public class HBaseStorage extends LoadFunc implements StoreFuncInterface, LoadPu
                         // values found
                         NavigableMap<byte[], NavigableMap<Long, byte[]>> cfResults =
                                 resultsMap.get(columnInfo.getColumnFamily());
-                        Map<String, DataByteArray> cfMap =
-                                new HashMap<String, DataByteArray>();
 
-                        if (cfResults != null) {
-                            for (byte[] quantifier : cfResults.keySet()) {
-                                // We need to check against the prefix filter to
-                                // see if this value should be included. We can't
-                                // just rely on the server-side filter, since a
-                                // user could specify multiple CF filters for the
-                                // same CF.
-                                if (columnInfo.getColumnPrefix() == null ||
-                                        columnInfo.hasPrefixMatch(quantifier)) {
+                        if (allRowVersions_) {
+                            DataBag rowBag = new DefaultDataBag();
 
-                                    NavigableMap<Long,byte[]> cellMap = cfResults.get(quantifier);
-                                    for (Entry<Long,byte[]> cellEntry : cellMap.entrySet()) {
-                                        byte[] cell = cellEntry.getValue();
-                                        DataByteArray value =
-                                                cell == null ? null : new DataByteArray(cell);
-                                        cfMap.put(Bytes.toString(quantifier), value);
+                            if (cfResults != null) {
+                                for (byte[] quantifier : cfResults.keySet()) {
+                                    // We need to check against the prefix filter to
+                                    // see if this value should be included. We can't
+                                    // just rely on the server-side filter, since a
+                                    // user could specify multiple CF filters for the
+                                    // same CF.
+                                    if (columnInfo.getColumnPrefix() == null ||
+                                            columnInfo.hasPrefixMatch(quantifier)) {
+
+                                        NavigableMap<Long,byte[]> cellMap = cfResults.get(quantifier);
+                                        // create a hash for each version
+                                        for (Entry<Long,byte[]> cellEntry : cellMap.entrySet()) {
+                                            // add stuff to the version hash
+                                        }
+                                        //tuple.set(currentIndex, );
                                     }
                                 }
                             }
-                        }
-                        tuple.set(currentIndex, cfMap);
-                    } else {
-                        // It's a column so set the value
-                        List<KeyValue> cells=(List<KeyValue>)result.getColumn(columnInfo.getColumnFamily(),
-                                                    columnInfo.getColumnName());
-                        Iterator cellsIterator = cells.iterator();
+                        } else {
+                            Map<String, DataByteArray> cfMap =
+                                    new HashMap<String, DataByteArray>();
 
-                        DataBag valueBag = new DefaultDataBag();
-                        while (cellsIterator.hasNext()) {
-                            KeyValue cell = (KeyValue)cellsIterator.next();
-                            Tuple valueTuple = TupleFactory.getInstance().newTuple(2);
-                            valueTuple.set(0, cell.getTimestamp());
-                            valueTuple.set(1, new DataByteArray(cell.getValue()));
-                            valueBag.add(valueTuple);
+                            if (cfResults != null) {
+                                for (byte[] quantifier : cfResults.keySet()) {
+                                    // We need to check against the prefix filter to
+                                    // see if this value should be included. We can't
+                                    // just rely on the server-side filter, since a
+                                    // user could specify multiple CF filters for the
+                                    // same CF.
+                                    if (columnInfo.getColumnPrefix() == null ||
+                                            columnInfo.hasPrefixMatch(quantifier)) {
+
+                                        NavigableMap<Long,byte[]> cellMap = cfResults.get(quantifier);
+                                        for (Entry<Long,byte[]> cellEntry : cellMap.entrySet()) {
+                                            byte[] cell = cellEntry.getValue();
+                                            DataByteArray value =
+                                                    cell == null ? null : new DataByteArray(cell);
+                                            cfMap.put(Bytes.toString(quantifier), value);
+                                        }
+                                    }
+                                }
+                            }
+
+                            tuple.set(currentIndex, cfMap);
                         }
-                        tuple.set(currentIndex, valueBag);
+                    } else {
+                        if (allRowVersions_) {
+                            List<KeyValue> cells=(List<KeyValue>)result.getColumn(columnInfo.getColumnFamily(),
+                                                        columnInfo.getColumnName());
+                            Iterator cellsIterator = cells.iterator();
+
+                            DataBag valueBag = new DefaultDataBag();
+                            while (cellsIterator.hasNext()) {
+                                KeyValue cell = (KeyValue)cellsIterator.next();
+                                Tuple valueTuple = TupleFactory.getInstance().newTuple(2);
+                                valueTuple.set(0, cell.getTimestamp());
+                                valueTuple.set(1, new DataByteArray(cell.getValue()));
+                                valueBag.add(valueTuple);
+                            }
+                            tuple.set(currentIndex, valueBag);
+                        } else {
+                            byte[] cell=result.getValue(columnInfo.getColumnFamily(),
+                                                        columnInfo.getColumnName());
+                            DataByteArray value =
+                                    cell == null ? null : new DataByteArray(cell);
+                            tuple.set(currentIndex, value);
+                        }
                     }
                 }
 
